@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#f5f5f7] text-[#1d1d1f] antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    letter-spacing: -0.011em;
+  }
+
+  /* Custom minimal grey scrollbar matching Apple aesthetic */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* Light Mode Glassmorphism & Panel shadows */
+.backdrop-blur-md {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.backdrop-blur-xl {
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+}
+
+/* Clean, crisp shadows instead of glowing borders */
+.shadow-sm-clean {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.shadow-md-clean {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-lg-clean {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+}
+
+/* Base element overrides for clean minimalism */
+input, select, button, textarea {
+  font-family: inherit;
+}
+
+/* Select option background fixes */
+[role="listbox"] {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+  color: #1d1d1f !important;
+}
+
+[role="option"]:hover, [role="option"][data-highlighted] {
+  background-color: #f5f5f7 !important;
+  color: #0071e3 !important;
+}
+
+/* Custom slider */
+.apple-slider [role="slider"] {
+  background-color: #0071e3 !important;
+  border-color: #0071e3 !important;
+}
+
+.apple-slider .bg-primary {
+  background-color: #0071e3 !important;
+}
