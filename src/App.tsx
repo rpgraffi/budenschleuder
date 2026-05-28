@@ -49,35 +49,15 @@ export default function App() {
 
   // --- 2. Initial Database Load ---
   useEffect(() => {
-    // 1. Load browser-local fallback batches first
-    const savedLocalBatchesStr = localStorage.getItem("budenschleuder_local_batches");
-    let localBatches: Record<string, ParsedListing[]> = {};
-    if (savedLocalBatchesStr) {
-      try {
-        localBatches = JSON.parse(savedLocalBatchesStr);
-        setBatches(localBatches);
-        setExistingBatchIds(Object.keys(localBatches));
-      } catch (e) {
-        console.error("Failed to parse local browser batches:", e);
-      }
-    }
-
-    // 2. Fetch the unified catalog & listings from Vercel Serverless API
+    // Fetch the unified catalog & listings from Vercel Serverless Edge Config API
     fetch("/api/get-batches")
       .then((res) => {
         if (!res.ok) throw new Error("API catalog fetch failed");
         return res.json();
       })
       .then((data: { catalog: string[]; batches: Record<string, ParsedListing[]>; mode: string }) => {
-        // Merge API batches with browser local batches
-        setExistingBatchIds((prev) => {
-          const merged = Array.from(new Set([...prev, ...data.catalog]));
-          return merged.sort((a, b) => b.localeCompare(a));
-        });
-        setBatches((prev) => ({
-          ...prev,
-          ...data.batches
-        }));
+        setExistingBatchIds(data.catalog);
+        setBatches(data.batches);
 
         // Set initial active batch ID preference if stored
         const savedActiveBatch = localStorage.getItem("budenschleuder_active_batch_id");
@@ -90,16 +70,7 @@ export default function App() {
         });
       })
       .catch((e) => {
-        console.warn("Unified Serverless API is offline or running static build fallback. Using local storage batches.", e);
-        // Fallback setting active batch ID
-        setExistingBatchIds((currentIds) => {
-          const savedActiveBatch = localStorage.getItem("budenschleuder_active_batch_id");
-          const initialBatch = savedActiveBatch && (currentIds.includes(savedActiveBatch) || savedActiveBatch === "ALL")
-            ? savedActiveBatch
-            : (currentIds[0] || "ALL");
-          setActiveBatchId(initialBatch);
-          return currentIds;
-        });
+        console.error("Failed to load batches from serverless Edge Config API:", e);
       });
 
     // Load favorites from LocalStorage
@@ -243,7 +214,7 @@ export default function App() {
                 )}
               </div>
               <p className="text-xs text-slate-500">
-                Munich's Housing Newsletter Database - Processed once, shared by all
+                Munich's Housing Newsletter Database - Powered by globally replicated Edge Config
               </p>
             </div>
           </div>
@@ -289,7 +260,7 @@ export default function App() {
                       </div>
                       <h3 className="font-extrabold text-slate-900 text-lg">No Housing Database Found</h3>
                       <p className="text-xs leading-relaxed text-slate-500">
-                        The explorer catalog is currently empty. To get started and save parsed issues directly to the local filesystem for all users, drag-and-drop or paste your first newsletter issue in the import terminal!
+                        The globally replicated Edge Config store catalog is currently empty. Go to the Import Console and paste your first newsletter issue to sync it for all users!
                       </p>
                       <Button
                         onClick={() => setActiveTab("import")}
@@ -320,7 +291,7 @@ export default function App() {
                           {/* Listing Category Selector */}
                           <div className="md:col-span-2">
                             <Select value={typeFilter} onValueChange={setTypeFilter}>
-                              <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-805 h-9 text-xs rounded-xl shadow-sm-clean">
+                              <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-850 h-9 text-xs rounded-xl shadow-sm-clean">
                                 <SelectValue placeholder="Category" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-slate-200 text-slate-800 text-xs rounded-xl shadow-md-clean">

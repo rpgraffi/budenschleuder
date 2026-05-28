@@ -118,7 +118,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
 
       // If not present, run Gemini AI parsing!
       if (!apiKey.trim()) {
-        toast.error("No Gemini API Key found in .env configurations! Ingestion aborted.");
+        toast.error("No Gemini API Key found in env variables! Ingestion aborted.");
         setLogs((prev) => [
           ...prev,
           `[ERROR] Missing Ingestion credentials: GEMINI_API_KEY is not defined in your environment (.env file).`,
@@ -161,63 +161,40 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
         await new Promise((r) => setTimeout(r, 100));
       }
 
-      // Save parsed listings directly to public/data/batch/ folder via local Vite POST API
+      // Save parsed listings directly to Vercel Edge Config
       setLogs((prev) => [
         ...prev,
-        `[SYSTEM] Connecting to local server API to persist batch...`
+        `[SYSTEM] Connecting to serverless API to persist batch...`
       ]);
       await new Promise((r) => setTimeout(r, 200));
 
-      try {
-        const saveRes = await fetch("/api/save-batch", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            batchId,
-            listings: parsed
-          })
-        });
+      const saveRes = await fetch("/api/save-batch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          batchId,
+          listings: parsed
+        })
+      });
 
-        if (saveRes.ok) {
-          setLogs((prev) => [
-            ...prev,
-            `[SUCCESS] File successfully saved to: public/data/batch/${batchId}.json`,
-            `[SUCCESS] Registered in: public/data/batches.json`,
-            `[SYSTEM] Injecting ${parsed.length} structured listings into explorer...`
-          ]);
-          onImportBatch(batchId, parsed);
-        } else {
-          const errText = await saveRes.text();
-          throw new Error(errText);
-        }
-      } catch (e) {
-        // Fallback to local storage persistence! (Normal when running on static Vercel servers)
-        setLogs((prev) => [
-          ...prev,
-          `[WARNING] Local filesystem write failed (serverless/Vercel production environment).`,
-          `[SYSTEM] Falling back to browser LocalStorage persistence...`
-        ]);
-
-        const savedBatchesStr = localStorage.getItem("budenschleuder_local_batches") || "{}";
-        let localBatches: Record<string, ParsedListing[]> = {};
-        try {
-          localBatches = JSON.parse(savedBatchesStr);
-        } catch (e) {
-          localBatches = {};
-        }
-        localBatches[batchId] = parsed;
-        localStorage.setItem("budenschleuder_local_batches", JSON.stringify(localBatches));
-
-        setLogs((prev) => [
-          ...prev,
-          `[SUCCESS] Batch "${batchId}" successfully saved in your browser storage.`,
-          `[SYSTEM] Injecting ${parsed.length} structured listings into explorer...`
-        ]);
-
-        onImportBatch(batchId, parsed);
+      if (!saveRes.ok) {
+        const errData = await saveRes.json();
+        throw new Error(errData.error || "Failed to update Vercel Edge Config database");
       }
+
+      setLogs((prev) => [
+        ...prev,
+        `[SUCCESS] Batch successfully persisted to globally replicated Vercel Edge Config!`,
+        `[SUCCESS] Registered key "batch:${batchId}" and updated central "catalog".`,
+        `[SYSTEM] Injecting ${parsed.length} structured listings into explorer...`
+      ]);
+
+      await new Promise((r) => setTimeout(r, 400));
+
+      // Trigger callback to update App state (instantly caches batch listings in memory)
+      onImportBatch(batchId, parsed);
 
       setCompleted(true);
       toast.success(`AI successfully ingested & saved listings for ${batchId}!`);

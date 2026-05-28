@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { get } from "@vercel/edge-config";
+import { list } from "@vercel/blob";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -15,35 +15,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. If Vercel Edge Config is configured (Production Vercel deployment)
-    if (process.env.EDGE_CONFIG) {
-      let catalog: string[] = [];
-      try {
-        const savedCatalog = await get<string[]>("catalog");
-        if (Array.isArray(savedCatalog)) {
-          catalog = savedCatalog;
-        }
-      } catch (e) {
-        catalog = [];
-      }
+    // 1. Production Mode: Read from Vercel Blob (Works out of the box with BLOB_READ_WRITE_TOKEN!)
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const { blobs } = await list({ prefix: "batch/" });
+      
+      const catalog = blobs
+        .map((blob) => {
+          // Extract batch ID from pathname, e.g., "batch/2026-42.json" -> "2026-42"
+          return blob.pathname.replace("batch/", "").replace(".json", "");
+        })
+        .sort((a, b) => b.localeCompare(a));
 
       const batches: Record<string, any[]> = {};
       
-      // Load all batches in parallel from Edge Config
+      // Load all batches in parallel
       await Promise.all(
-        catalog.map(async (batchId) => {
+        blobs.map(async (blob) => {
+          const batchId = blob.pathname.replace("batch/", "").replace(".json", "");
           try {
-            const listings = await get<any[]>(`batch:${batchId}`);
-            if (Array.isArray(listings)) {
-              batches[batchId] = listings;
+            const fetchRes = await fetch(blob.url);
+            if (fetchRes.ok) {
+              batches[batchId] = await fetchRes.json();
             }
           } catch (e) {
-            console.error(`Failed to load batch:${batchId} from Edge Config:`, e);
+            console.error(`Failed to load batch ${batchId} from blob URL:`, e);
           }
         })
       );
 
-      res.status(200).json({ catalog, batches, mode: "production_edge_config" });
+      res.status(200).json({ catalog, batches, mode: "production_blob" });
       return;
     }
 
