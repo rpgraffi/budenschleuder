@@ -22,7 +22,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
   const [completed, setCompleted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("budenschleuder_gemini_key") || "AIzaSyBQ585dZ-b-5Cfhyi2tRflJHUUPjSwf8uM");
+  const [apiKey, setApiKey] = useState(() => (import.meta.env.GEMINI_API_KEY as string) || localStorage.getItem("budenschleuder_gemini_key") || "AIzaSyBQ585dZ-b-5Cfhyi2tRflJHUUPjSwf8uM");
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
   // Persist API key modifications to LocalStorage
