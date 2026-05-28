@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
+    "@vercel/edge-config": "^1.4.3",
+    "@vercel/kv": "^3.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
@@ -27,6 +29,7 @@
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vercel/node": "^5.8.6",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.19",
     "eslint": "^10.3.0",

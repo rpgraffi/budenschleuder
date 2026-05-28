@@ -49,40 +49,57 @@ export default function App() {
 
   // --- 2. Initial Database Load ---
   useEffect(() => {
-    // 1. Fetch available batches catalog from public directory
-    fetch("/data/batches.json")
+    // 1. Load browser-local fallback batches first
+    const savedLocalBatchesStr = localStorage.getItem("budenschleuder_local_batches");
+    let localBatches: Record<string, ParsedListing[]> = {};
+    if (savedLocalBatchesStr) {
+      try {
+        localBatches = JSON.parse(savedLocalBatchesStr);
+        setBatches(localBatches);
+        setExistingBatchIds(Object.keys(localBatches));
+      } catch (e) {
+        console.error("Failed to parse local browser batches:", e);
+      }
+    }
+
+    // 2. Fetch the unified catalog & listings from Vercel Serverless API
+    fetch("/api/get-batches")
       .then((res) => {
-        if (!res.ok) throw new Error("Catalog index not found");
+        if (!res.ok) throw new Error("API catalog fetch failed");
         return res.json();
       })
-      .then((catalog: string[]) => {
-        setExistingBatchIds(catalog);
-        
-        // Load active batch ID preference if stored
+      .then((data: { catalog: string[]; batches: Record<string, ParsedListing[]>; mode: string }) => {
+        // Merge API batches with browser local batches
+        setExistingBatchIds((prev) => {
+          const merged = Array.from(new Set([...prev, ...data.catalog]));
+          return merged.sort((a, b) => b.localeCompare(a));
+        });
+        setBatches((prev) => ({
+          ...prev,
+          ...data.batches
+        }));
+
+        // Set initial active batch ID preference if stored
         const savedActiveBatch = localStorage.getItem("budenschleuder_active_batch_id");
-        const initialBatch = savedActiveBatch && (catalog.includes(savedActiveBatch) || savedActiveBatch === "ALL")
-          ? savedActiveBatch
-          : (catalog[0] || "ALL");
-        
-        setActiveBatchId(initialBatch);
-        
-        // 2. Load listings data for each batch in the catalog
-        catalog.forEach((batchId) => {
-          fetch(`/data/batch/${batchId}.json`)
-            .then((res) => {
-              if (!res.ok) throw new Error(`Listing file not found for ${batchId}`);
-              return res.json();
-            })
-            .then((listings) => {
-              setBatches((prev) => ({ ...prev, [batchId]: listings }));
-            })
-            .catch((e) => console.error(`Failed to load listings for batch ${batchId}:`, e));
+        setExistingBatchIds((currentIds) => {
+          const initialBatch = savedActiveBatch && (currentIds.includes(savedActiveBatch) || savedActiveBatch === "ALL")
+            ? savedActiveBatch
+            : (currentIds[0] || "ALL");
+          setActiveBatchId(initialBatch);
+          return currentIds;
         });
       })
       .catch((e) => {
-        console.error("Failed to load batches catalog from public/data/batches.json:", e);
-        setExistingBatchIds([]);
-        setActiveBatchId("ALL");
+        console.warn("Unified Serverless API is offline or running static build fallback. Using local storage batches.", e);
+        // Fallback setting active batch ID
+        setExistingBatchIds((currentIds) => {
+          const savedActiveBatch = localStorage.getItem("budenschleuder_active_batch_id");
+          const initialBatch = savedActiveBatch && (currentIds.includes(savedActiveBatch) || savedActiveBatch === "ALL")
+            ? savedActiveBatch
+            : (currentIds[0] || "ALL");
+          setActiveBatchId(initialBatch);
+          return currentIds;
+        });
       });
 
     // Load favorites from LocalStorage
@@ -303,7 +320,7 @@ export default function App() {
                           {/* Listing Category Selector */}
                           <div className="md:col-span-2">
                             <Select value={typeFilter} onValueChange={setTypeFilter}>
-                              <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-800 h-9 text-xs rounded-xl shadow-sm-clean">
+                              <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-805 h-9 text-xs rounded-xl shadow-sm-clean">
                                 <SelectValue placeholder="Category" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-slate-200 text-slate-800 text-xs rounded-xl shadow-md-clean">
@@ -320,7 +337,7 @@ export default function App() {
                           {/* Rooms Selector */}
                           <div className="md:col-span-2">
                             <Select value={roomsFilter} onValueChange={setRoomsFilter}>
-                              <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-800 h-9 text-xs rounded-xl shadow-sm-clean">
+                              <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-805 h-9 text-xs rounded-xl shadow-sm-clean">
                                 <SelectValue placeholder="Min Rooms" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-slate-200 text-slate-850 text-xs rounded-xl shadow-md-clean">

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { parseNewsletterWithAI, extractBatchId, type ParsedListing } from "@/lib/parser";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Terminal, RefreshCw, CheckCircle2, Play, Settings, Key, Upload } from "lucide-react";
+import { Terminal, RefreshCw, CheckCircle2, Play, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 interface ParserTerminalProps {
@@ -20,15 +20,11 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
   const [logs, setLogs] = useState<string[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [apiKey, setApiKey] = useState(() => (import.meta.env.GEMINI_API_KEY as string) || localStorage.getItem("budenschleuder_gemini_key") || "AIzaSyBQ585dZ-b-5Cfhyi2tRflJHUUPjSwf8uM");
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
-  // Persist API key modifications to LocalStorage
-  useEffect(() => {
-    localStorage.setItem("budenschleuder_gemini_key", apiKey);
-  }, [apiKey]);
+  // Load API Key purely from Vite defining/localStorage/Developer fallback
+  const apiKey = (import.meta.env.GEMINI_API_KEY as string) || localStorage.getItem("budenschleuder_gemini_key") || "AIzaSyBQ585dZ-b-5Cfhyi2tRflJHUUPjSwf8uM";
 
   // Auto-scroll terminal to bottom
   useEffect(() => {
@@ -122,8 +118,12 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
 
       // If not present, run Gemini AI parsing!
       if (!apiKey.trim()) {
-        toast.error("Please enter a valid Gemini API Key first!");
-        setShowSettings(true);
+        toast.error("No Gemini API Key found in .env configurations! Ingestion aborted.");
+        setLogs((prev) => [
+          ...prev,
+          `[ERROR] Missing Ingestion credentials: GEMINI_API_KEY is not defined in your environment (.env file).`,
+          `[SYSTEM] Ingestion aborted.`
+        ]);
         setIsParsing(false);
         return;
       }
@@ -168,33 +168,56 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
       ]);
       await new Promise((r) => setTimeout(r, 200));
 
-      const saveRes = await fetch("/api/save-batch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          batchId,
-          listings: parsed
-        })
-      });
+      try {
+        const saveRes = await fetch("/api/save-batch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            batchId,
+            listings: parsed
+          })
+        });
 
-      if (!saveRes.ok) {
-        const errText = await saveRes.text();
-        throw new Error(`Failed to save batch to local filesystem: ${errText}`);
+        if (saveRes.ok) {
+          setLogs((prev) => [
+            ...prev,
+            `[SUCCESS] File successfully saved to: public/data/batch/${batchId}.json`,
+            `[SUCCESS] Registered in: public/data/batches.json`,
+            `[SYSTEM] Injecting ${parsed.length} structured listings into explorer...`
+          ]);
+          onImportBatch(batchId, parsed);
+        } else {
+          const errText = await saveRes.text();
+          throw new Error(errText);
+        }
+      } catch (e) {
+        // Fallback to local storage persistence! (Normal when running on static Vercel servers)
+        setLogs((prev) => [
+          ...prev,
+          `[WARNING] Local filesystem write failed (serverless/Vercel production environment).`,
+          `[SYSTEM] Falling back to browser LocalStorage persistence...`
+        ]);
+
+        const savedBatchesStr = localStorage.getItem("budenschleuder_local_batches") || "{}";
+        let localBatches: Record<string, ParsedListing[]> = {};
+        try {
+          localBatches = JSON.parse(savedBatchesStr);
+        } catch (e) {
+          localBatches = {};
+        }
+        localBatches[batchId] = parsed;
+        localStorage.setItem("budenschleuder_local_batches", JSON.stringify(localBatches));
+
+        setLogs((prev) => [
+          ...prev,
+          `[SUCCESS] Batch "${batchId}" successfully saved in your browser storage.`,
+          `[SYSTEM] Injecting ${parsed.length} structured listings into explorer...`
+        ]);
+
+        onImportBatch(batchId, parsed);
       }
-
-      setLogs((prev) => [
-        ...prev,
-        `[SUCCESS] File successfully saved to: public/data/batch/${batchId}.json`,
-        `[SUCCESS] Registered in: public/data/batches.json`,
-        `[SYSTEM] Injecting ${parsed.length} structured listings into explorer...`
-      ]);
-
-      await new Promise((r) => setTimeout(r, 400));
-
-      // Trigger callback to update App state (instantly caches batch listings in memory)
-      onImportBatch(batchId, parsed);
 
       setCompleted(true);
       toast.success(`AI successfully ingested & saved listings for ${batchId}!`);
@@ -202,7 +225,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
       setLogs((prev) => [
         ...prev,
         `[ERROR] AI Ingestion Exception: ${(error as Error).message}`,
-        `[SYSTEM] Please check your Gemini API key, network connection, or text layout.`,
+        `[SYSTEM] Please check your Gemini API key in your .env file, network connection, or text layout.`,
         `[SYSTEM] Ingestion aborted.`
       ]);
       toast.error("AI parsing failed! View console logs.");
@@ -214,7 +237,6 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
   const handleReset = () => {
     setInputText("");
     setLogs([]);
-    setCompleted(false);
   };
 
   return (
@@ -241,7 +263,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
           </div>
         )}
 
-        <CardHeader className="pb-3 shrink-0 flex flex-row items-center justify-between">
+        <CardHeader className="pb-3 shrink-0">
           <div className="space-y-1">
             <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
               <RefreshCw className="w-4 h-4 text-[#0071e3]" /> Import Housing Issue
@@ -250,37 +272,8 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
               Paste email text or drag-and-drop a <strong className="text-slate-700">.txt</strong> or <strong className="text-slate-700">.eml</strong> file below to extract listings.
             </CardDescription>
           </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setShowSettings(!showSettings)}
-            className="text-xs text-slate-500 hover:text-slate-900 flex items-center gap-1 hover:bg-slate-100/60 rounded-lg py-1 px-2.5 h-8 shrink-0"
-          >
-            <Settings className="w-3.5 h-3.5" /> API Key
-          </Button>
         </CardHeader>
         <CardContent className="flex-grow p-4 pt-0 flex flex-col gap-3">
-          {/* Collapsible API Settings Bar */}
-          {showSettings && (
-            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col gap-2 transition-all duration-300">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                <Key className="w-3.5 h-3.5 text-[#0071e3]" /> Gemini API Configuration
-              </div>
-              <div className="relative flex items-center mt-1">
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Enter Gemini API Key (AIzaSy...)"
-                  className="w-full pl-3 pr-10 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0071e3] focus:ring-1 focus:ring-[#0071e3] shadow-sm-clean"
-                />
-              </div>
-              <span className="text-[10px] text-slate-400 leading-normal">
-                Using Gemini 3.1 Flash Lite. Prefilled with the default developer key for instant out-of-the-box parsing.
-              </span>
-            </div>
-          )}
-
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
