@@ -1,10 +1,9 @@
 import React from "react";
 import type { ParsedListing } from "@/lib/parser";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { MUNICH_DISTRICTS } from "@/lib/districts";
-import { Heart, Home, Euro, Maximize, MapPin, Eye } from "lucide-react";
+import { Heart, Home, Euro, Maximize, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ListingCardProps {
@@ -43,7 +42,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
   return (
     <Card
-      className="bg-white border border-slate-200/65 shadow-sm-clean hover:border-slate-300/80 hover:shadow-md-clean transition-all duration-300 flex flex-col justify-between group overflow-hidden rounded-2xl"
+      onClick={() => onViewDetails(listing)}
+      className="bg-white border border-slate-200/65 shadow-sm-clean hover:border-slate-300/80 hover:shadow-md-clean hover:scale-[1.015] active:scale-[0.985] transition-all duration-300 flex flex-col justify-between group overflow-hidden rounded-2xl cursor-pointer"
     >
       <CardHeader className="p-4 pb-2">
         <div className="flex justify-between items-start gap-2">
@@ -83,7 +83,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           {/* Rooms */}
           <div className="flex flex-col items-center justify-center border-r border-slate-200/80">
             <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
-              <Home className="w-2.5 h-2.5 text-slate-400" /> Rooms
+              <Home className="w-2.5 h-2.5 text-slate-400" /> Zimmer
             </span>
             <span className="text-xs font-bold font-mono mt-0.5 text-slate-800">
               {listing.roomsText}
@@ -96,17 +96,17 @@ export const ListingCard: React.FC<ListingCardProps> = ({
               <Euro className="w-2.5 h-2.5 text-slate-400" /> Budget
             </span>
             <span className="text-xs font-bold font-mono mt-0.5 text-slate-800">
-              {listing.budget > 0 ? `${listing.budget}€` : "n.a."}
+              {listing.budget > 0 ? `${listing.budget}€` : "k.A."}
             </span>
           </div>
 
           {/* Size */}
           <div className="flex flex-col items-center justify-center">
             <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
-              <Maximize className="w-2.5 h-2.5 text-slate-400" /> Size
+              <Maximize className="w-2.5 h-2.5 text-slate-400" /> Größe
             </span>
             <span className="text-xs font-bold font-mono mt-0.5 text-slate-800 text-center truncate w-full">
-              {listing.size > 0 ? `${listing.size}m²` : "n.a."}
+              {listing.size > 0 ? `${listing.size}m²` : "k.A."}
             </span>
           </div>
         </div>
@@ -117,7 +117,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           <span className="line-clamp-1">
             {listing.districts.length > 0
               ? listing.districts.map((d) => MUNICH_DISTRICTS[d]?.name || d).join(", ")
-              : "München (Gesamt Stadt)"}
+              : "München (Gesamtstadt)"}
           </span>
         </div>
 
@@ -145,17 +145,6 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           </div>
         )}
       </CardContent>
-
-      <CardFooter className="p-4 pt-1">
-        <Button
-          onClick={() => onViewDetails(listing)}
-          variant="secondary"
-          size="sm"
-          className="w-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/60 flex items-center justify-center gap-1.5 py-2 rounded-xl transition-colors duration-200"
-        >
-          <Eye className="w-3.5 h-3.5" /> View Details
-        </Button>
-      </CardFooter>
     </Card>
   );
 };

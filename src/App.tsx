@@ -17,14 +17,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import { 
-  Building2, 
   Search, 
   Terminal as TerminalIcon, 
   Bookmark, 
   SlidersHorizontal, 
   RotateCcw,
   X,
-  PlusCircle
+  PlusCircle,
+  CalendarX
 } from "lucide-react";
 
 export default function App() {
@@ -42,6 +42,7 @@ export default function App() {
   const [districtFilter, setDistrictFilter] = useState<string>("ALL");
   const [maxBudget, setMaxBudget] = useState<number>(3000);
   const [showOnlyFavs, setShowOnlyFavs] = useState<boolean>(false);
+  const [excludeTemporary, setExcludeTemporary] = useState<boolean>(true);
 
   // Detail Modal State
   const [selectedListing, setSelectedListing] = useState<ParsedListing | null>(null);
@@ -128,6 +129,7 @@ export default function App() {
     setDistrictFilter("ALL");
     setMaxBudget(3000);
     setShowOnlyFavs(false);
+    setExcludeTemporary(true);
   };
 
   // --- 4. Resolve Active Listings Set ---
@@ -159,15 +161,15 @@ export default function App() {
       // C. District Filter
       if (districtFilter !== "ALL" && !item.districts.includes(districtFilter)) return false;
 
-      // D. Budget Filter
-      if (item.budget > 0 && item.budget > maxBudget) return false;
+      // E. Exclude Befristet / Temporary
+      if (excludeTemporary && (item.features?.temporary || item.tags.includes("Befristet"))) return false;
 
-      // E. Favorites Only
+      // F. Favorites Only
       if (showOnlyFavs && !favorites.includes(item.id)) return false;
 
       return true;
     });
-  }, [listings, searchQuery, roomsFilter, districtFilter, maxBudget, showOnlyFavs, favorites]);
+  }, [listings, searchQuery, roomsFilter, districtFilter, maxBudget, excludeTemporary, showOnlyFavs, favorites]);
 
   // --- 6. Core Reactive Filtering Logic ---
   const filteredListings = useMemo(() => {
@@ -186,37 +188,24 @@ export default function App() {
         
         {/* Header Branding */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-200 pb-5 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="bg-slate-900 p-2 rounded-xl text-white shadow-sm">
-              <Building2 className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-                  Budenschleuder
-                </h1>
-                
-                {/* Elegant Batch selector dropdown inside Header */}
-                {existingBatchIds.length > 0 && (
-                  <div className="flex items-center ml-1">
-                    <Select value={activeBatchId} onValueChange={handleSelectBatch}>
-                      <SelectTrigger className="w-[180px] bg-slate-200/50 border-slate-300 text-slate-800 text-xs rounded-full shadow-sm-clean h-7 font-bold px-3 focus-visible:ring-slate-300 hover:bg-slate-200/80 hover:cursor-pointer transition-colors">
-                        <SelectValue placeholder="Select Issue" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border-slate-200 text-slate-850 text-xs rounded-xl shadow-md-clean">
-                        <SelectItem value="ALL">All Combined Issues</SelectItem>
-                        {existingBatchIds.map((id) => (
-                          <SelectItem key={id} value={id}>Issue {id}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">
-                Munich's Housing Newsletter Database - Powered by globally replicated Edge Config
-              </p>
-            </div>
+          <div className="flex items-center gap-4">
+            {/* Native dropdown selector positioned on the left */}
+            {existingBatchIds.length > 0 && (
+              <select
+                value={activeBatchId}
+                onChange={(e) => handleSelectBatch(e.target.value)}
+                className="bg-slate-200/60 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs rounded-xl shadow-sm-clean h-8 font-bold px-3 focus:outline-none focus:ring-1 focus:ring-slate-400 hover:cursor-pointer transition-colors"
+              >
+                <option value="ALL">Alle Ausgaben kombiniert</option>
+                {existingBatchIds.map((id) => (
+                  <option key={id} value={id}>Ausgabe {id}</option>
+                ))}
+              </select>
+            )}
+
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
+              Budenschleuder
+            </h1>
           </div>
           
           {/* Tab Navigation */}
@@ -226,7 +215,7 @@ export default function App() {
                 <Search className="w-3.5 h-3.5 mr-1.5" /> Explorer
               </TabsTrigger>
               <TabsTrigger value="import" className="text-xs font-semibold px-4 rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm">
-                <TerminalIcon className="w-3.5 h-3.5 mr-1.5" /> Import Paste
+                <TerminalIcon className="w-3.5 h-3.5 mr-1.5" /> Importieren
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -239,7 +228,6 @@ export default function App() {
           <aside className="lg:col-span-1 flex flex-col gap-5 h-full">
             <SidebarStats
               listings={listings}
-              filteredListings={filteredListings}
               listingsMatchingOtherFilters={listingsMatchingOtherFilters}
             />
           </aside>
@@ -258,15 +246,15 @@ export default function App() {
                       <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-slate-400 shadow-sm-clean animate-pulse">
                         <TerminalIcon className="w-10 h-10 text-[#0071e3]" />
                       </div>
-                      <h3 className="font-extrabold text-slate-900 text-lg">No Housing Database Found</h3>
+                      <h3 className="font-extrabold text-slate-900 text-lg">Keine Inserate-Datenbank gefunden</h3>
                       <p className="text-xs leading-relaxed text-slate-500">
-                        The globally replicated Edge Config store catalog is currently empty. Go to the Import Console and paste your first newsletter issue to sync it for all users!
+                        Die Inserate-Datenbank ist derzeit leer. Gehe zum Import-Bereich und füge deine erste Newsletter-Ausgabe ein, um sie für alle Nutzer zu speichern!
                       </p>
                       <Button
                         onClick={() => setActiveTab("import")}
                         className="bg-[#0071e3] hover:bg-[#0071e3]/90 text-white font-semibold text-xs py-2.5 px-5 mt-2 rounded-xl shadow-sm-clean transition-colors flex items-center gap-2 hover:cursor-pointer"
                       >
-                        <PlusCircle className="w-4 h-4" /> Go to Import Console
+                        <PlusCircle className="w-4 h-4" /> Zum Import-Bereich
                       </Button>
                     </div>
                   </Card>
@@ -281,7 +269,7 @@ export default function App() {
                           <div className="md:col-span-4 relative">
                             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                             <Input
-                              placeholder="Search keyword, name..."
+                              placeholder="Stichwort, Name suchen..."
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
                               className="pl-9 bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus-visible:ring-slate-300 h-9 text-xs rounded-xl shadow-sm-clean"
@@ -292,14 +280,14 @@ export default function App() {
                           <div className="md:col-span-2">
                             <Select value={typeFilter} onValueChange={setTypeFilter}>
                               <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-850 h-9 text-xs rounded-xl shadow-sm-clean">
-                                <SelectValue placeholder="Category" />
+                                <SelectValue placeholder="Kategorie" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-slate-200 text-slate-800 text-xs rounded-xl shadow-md-clean">
-                                <SelectItem value="ALL">All Categories</SelectItem>
-                                <SelectItem value="SUCHE">Suche (Search)</SelectItem>
-                                <SelectItem value="BIETE">Biete (Offer)</SelectItem>
-                                <SelectItem value="TAUSCH">Tausch (Swap)</SelectItem>
-                                <SelectItem value="WG">WG Room</SelectItem>
+                                <SelectItem value="ALL">Alle Kategorien</SelectItem>
+                                <SelectItem value="SUCHE">Suche</SelectItem>
+                                <SelectItem value="BIETE">Biete</SelectItem>
+                                <SelectItem value="TAUSCH">Tausch</SelectItem>
+                                <SelectItem value="WG">WG-Zimmer</SelectItem>
                                 <SelectItem value="KAUF">Kaufgesuch</SelectItem>
                               </SelectContent>
                             </Select>
@@ -308,11 +296,11 @@ export default function App() {
                           {/* Rooms Selector */}
                           <div className="md:col-span-2">
                             <Select value={roomsFilter} onValueChange={setRoomsFilter}>
-                              <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-805 h-9 text-xs rounded-xl shadow-sm-clean">
-                                <SelectValue placeholder="Min Rooms" />
+                              <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-850 h-9 text-xs rounded-xl shadow-sm-clean">
+                                <SelectValue placeholder="Zimmeranzahl" />
                               </SelectTrigger>
-                              <SelectContent className="bg-white border-slate-200 text-slate-850 text-xs rounded-xl shadow-md-clean">
-                                <SelectItem value="ALL">Any Rooms</SelectItem>
+                              <SelectContent className="bg-white border-slate-200 text-slate-855 text-xs rounded-xl shadow-md-clean">
+                                <SelectItem value="ALL">Beliebige Zimmer</SelectItem>
                                 <SelectItem value="1">1+ Zimmer</SelectItem>
                                 <SelectItem value="2">2+ Zimmer</SelectItem>
                                 <SelectItem value="3">3+ Zimmer</SelectItem>
@@ -325,10 +313,10 @@ export default function App() {
                           <div className="md:col-span-2">
                             <Select value={districtFilter} onValueChange={setDistrictFilter}>
                               <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-800 h-9 text-xs rounded-xl shadow-sm-clean">
-                                <SelectValue placeholder="District" />
+                                <SelectValue placeholder="Stadtteil" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-slate-200 text-slate-805 text-xs rounded-xl shadow-md-clean">
-                                <SelectItem value="ALL">Any District</SelectItem>
+                                <SelectItem value="ALL">Beliebiger Stadtteil</SelectItem>
                                 {Object.entries(MUNICH_DISTRICTS).map(([key, value]) => (
                                   <SelectItem key={key} value={key}>
                                     {value.name}
@@ -343,11 +331,24 @@ export default function App() {
                             <Button
                               size="icon"
                               variant="ghost"
+                              onClick={() => setExcludeTemporary(!excludeTemporary)}
+                              className={cn(
+                                "h-9 w-9 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-blue-500 rounded-xl shadow-sm-clean transition-colors",
+                                excludeTemporary && "bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100/50"
+                              )}
+                              title="Befristete Inserate ausblenden"
+                            >
+                              <CalendarX className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               onClick={() => setShowOnlyFavs(!showOnlyFavs)}
                               className={cn(
                                 "h-9 w-9 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-rose-500 rounded-xl shadow-sm-clean transition-colors",
                                 showOnlyFavs && "bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100/50"
                               )}
+                              title="Nur Favoriten anzeigen"
                             >
                               <Bookmark className="w-4 h-4 fill-current" />
                             </Button>
@@ -356,6 +357,7 @@ export default function App() {
                               variant="ghost"
                               onClick={handleResetFilters}
                               className="h-9 w-9 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl shadow-sm-clean transition-colors"
+                              title="Filter zurücksetzen"
                             >
                               <RotateCcw className="w-4 h-4" />
                             </Button>
@@ -366,9 +368,9 @@ export default function App() {
                         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 pt-2 border-t border-slate-100">
                           <div className="flex items-center gap-2 text-slate-500 text-xs shrink-0 font-medium">
                             <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-                            <span>Maximum budget (Rent):</span>
+                            <span>Maximales Budget (Miete):</span>
                             <span className="font-bold font-mono text-slate-800 text-xs bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/60 shadow-sm-clean">
-                              {maxBudget === 3000 ? "No Limit" : `${maxBudget} €`}
+                              {maxBudget === 3000 ? "Kein Limit" : `${maxBudget} €`}
                             </span>
                           </div>
                           <div className="w-full flex items-center h-5">
@@ -385,42 +387,48 @@ export default function App() {
                         </div>
 
                         {/* Active Filters Pill Summary Row */}
-                        {(searchQuery || typeFilter !== "ALL" || roomsFilter !== "ALL" || districtFilter !== "ALL" || maxBudget < 3000 || showOnlyFavs) && (
+                        {(searchQuery || typeFilter !== "ALL" || roomsFilter !== "ALL" || districtFilter !== "ALL" || maxBudget < 3000 || showOnlyFavs || excludeTemporary) && (
                           <div className="flex flex-wrap gap-1.5 items-center pt-2">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 mr-1.5 select-none">Active Filters:</span>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 mr-1.5 select-none">Aktive Filter:</span>
                             {searchQuery && (
                               <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Q: "{searchQuery}"
+                                Suche: "{searchQuery}"
                                 <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setSearchQuery("")} />
                               </Badge>
                             )}
                             {typeFilter !== "ALL" && (
                               <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Type: {typeFilter}
+                                Typ: {typeFilter}
                                 <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setTypeFilter("ALL")} />
                               </Badge>
                             )}
                             {roomsFilter !== "ALL" && (
                               <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Rooms: {roomsFilter}+
+                                Zimmer: {roomsFilter}+
                                 <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setRoomsFilter("ALL")} />
                               </Badge>
                             )}
                             {districtFilter !== "ALL" && (
                               <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Loc: {MUNICH_DISTRICTS[districtFilter]?.name || districtFilter}
+                                Ort: {MUNICH_DISTRICTS[districtFilter]?.name || districtFilter}
                                 <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setDistrictFilter("ALL")} />
                               </Badge>
                             )}
                             {maxBudget < 3000 && (
                               <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Max Rent: {maxBudget}€
+                                Max. Miete: {maxBudget}€
                                 <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setMaxBudget(3000)} />
+                              </Badge>
+                            )}
+                            {excludeTemporary && (
+                              <Badge variant="secondary" className="bg-blue-50 border border-blue-200 text-[10px] text-blue-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
+                                Befristete ausblenden
+                                <X className="w-3 h-3 text-blue-400 hover:text-blue-700 cursor-pointer" onClick={() => setExcludeTemporary(false)} />
                               </Badge>
                             )}
                             {showOnlyFavs && (
                               <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Favorites Only
+                                Nur Favoriten
                                 <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setShowOnlyFavs(false)} />
                               </Badge>
                             )}
@@ -433,15 +441,15 @@ export default function App() {
                     {filteredListings.length === 0 ? (
                       <Card className="bg-slate-50 border border-slate-200/60 p-16 text-center text-slate-500 rounded-2xl shadow-inner-clean">
                         <SlidersHorizontal className="w-10 h-10 mx-auto opacity-40 text-slate-400 mb-3" />
-                        <h3 className="font-bold text-slate-800 text-sm mb-1">No Listings Found</h3>
+                        <h3 className="font-bold text-slate-800 text-sm mb-1">Keine Inserate gefunden</h3>
                         <p className="text-xs max-w-sm mx-auto leading-relaxed text-slate-500">
-                          No parsed advertisements match your current search terms, category filters, or location parameters. Try resetting your filters to explore.
+                          Keine Inserate entsprechen deinen aktuellen Suchbegriffen, Kategorien oder Filtereinstellungen. Setze die Filter zurück, um mehr Inserate zu sehen.
                         </p>
                         <Button
                           onClick={handleResetFilters}
                           className="bg-[#0071e3] hover:bg-[#0071e3]/90 text-white font-semibold text-xs py-2 px-4 mt-4 rounded-xl shadow-sm-clean transition-colors hover:cursor-pointer"
                         >
-                          Reset Active Filters
+                          Aktive Filter zurücksetzen
                         </Button>
                       </Card>
                     ) : (

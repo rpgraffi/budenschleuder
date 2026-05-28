@@ -1,4 +1,6 @@
 
+import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
+
 export interface ParsedListing {
   id: string;
   name: string;
@@ -62,74 +64,158 @@ export function extractBatchId(rawText: string): string {
 export async function parseNewsletterWithAI(rawHtml: string, apiKey: string): Promise<ParsedListing[]> {
   const cleanedText = cleanHtml(rawHtml);
   
+  const ai = new GoogleGenAI({ apiKey });
+
   const prompt = `You are a high-fidelity Munich housing parser.
 Analyze the following unstructured newsletter issue text containing multiple real estate/housing advertisements (divided by dots/numbers or standard paragraph boundaries).
-Extract each listing into a structured JSON array matching this TypeScript schema:
-
-interface ParsedListing {
-  id: string; // generate a unique string ID (e.g. listing-1, listing-2)
-  name: string; // The author's name, or "Unbekannt" if none is specified
-  email: string; // The contact email address (mandatory, if no email is found in the text block, skip this listing)
-  phone: string; // Contact phone number, or "" if none
-  type: "SUCHE" | "BIETE" | "TAUSCH" | "WG" | "KAUF"; // Categorize the listing. WG is for WG Room shares. TAUSCH is for direct swaps. KAUF is for buying. BIETE is when offering an apartment. SUCHE is when seeking an apartment.
-  title: string; // Generate a clean, descriptive title in German (e.g., "Max sucht 2 Zimmer in Schwabing" or "Biete 3 Zimmer in Haidhausen")
-  roomsText: string; // Human readable room count (e.g. "2 Zimmer", "1.5-2 Zimmer")
-  minRooms: number; // Minimum number of rooms (default to 1)
-  maxRooms: number; // Maximum number of rooms (if open-ended like "2 Zimmer+", set to 99)
-  budgetText: string; // Human readable budget/rent (e.g. "1200 € warm", "800 € kalt")
-  budget: number; // The maximum parsed numerical monthly rent/budget in Euros (default to 0 if not specified)
-  sizeText: string; // Human readable size (e.g. "60 m²", "ab 45 m²")
-  size: number; // The numerical apartment size in m² (default to 0 if not specified)
-  districts: string[]; // List of matching Munich districts in lowercase (must map exactly to one or more of these valid strings: "allach", "moosach", "schwabing", "bogenhausen", "wuermtal", "neuhausen", "maxvorstadt", "lehel", "isarvorstadt", "haidhausen", "ramersdorf"). Map central landmarks like "Münchner Freiheit" to "schwabing", "Johanneskirchen" to "bogenhausen".
-  tags: string[]; // Extract characteristics as tags (choose only from: "Nichtraucher", "Keine Haustiere", "Balkon/Terrasse", "Garten", "Möbliert", "Befristet")
-  fullText: string; // The complete raw text block of this specific listing (clean up HTML tags, keep formatting)
-  features: {
-    nonSmoker: boolean; // true if the ad specifies non-smoker / Nichtraucher
-    noPets: boolean; // true if the ad specifies no pets / Keine Haustiere
-    hasBalcony: boolean; // true if the ad mentions Balkon, Terrasse, Dachterrasse
-    hasGarden: boolean; // true if the ad mentions Garten, Gartenmitbenutzung
-    furnished: boolean; // true if the ad mentions möbliert, teilmöbliert
-    temporary: boolean; // true if the ad mentions befristet, Zwischenmiete, Untermiete
-  };
-  date: string; // The outreach date of this listing, default to "2026-05-27"
-  dateText: string; // The readable date in German, default to "27. Mai 2026"
-}
-
-Ensure the output is a valid JSON array of objects directly conforming to ParsedListing[]. Do not wrap the JSON in Markdown blocks like \`\`\`json. Return only the JSON.
+Extract each listing into a structured JSON array matching the provided schema.
 
 Here is the unstructured newsletter text:
 ${cleanedText}`;
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
+  const response = await ai.models.generateContent({
+    model: 'gemini-3.1-flash-lite',
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: prompt,
+          },
+        ],
+      },
+    ],
+    config: {
+      thinkingConfig: {
+        thinkingLevel: ThinkingLevel.MINIMAL,
+      },
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: {
+              type: Type.STRING,
+              description: "A unique string ID (e.g. listing-1, listing-2)",
+            },
+            name: {
+              type: Type.STRING,
+              description: "The author's name, or 'Unbekannt' if none is specified",
+            },
+            email: {
+              type: Type.STRING,
+              description: "The contact email address (mandatory, if no email is found in the text block, skip this listing)",
+            },
+            phone: {
+              type: Type.STRING,
+              description: "Contact phone number, or '' if none",
+            },
+            type: {
+              type: Type.STRING,
+              enum: ["SUCHE", "BIETE", "TAUSCH", "WG", "KAUF"],
+              description: "Categorize the listing: WG for WG Room shares, TAUSCH for direct swaps, KAUF for buying, BIETE for offering an apartment, SUCHE for seeking an apartment.",
+            },
+            title: {
+              type: Type.STRING,
+              description: "Generate a clean, descriptive title in German (e.g., 'Max sucht 2 Zimmer in Schwabing' or 'Biete 3 Zimmer in Haidhausen')",
+            },
+            roomsText: {
+              type: Type.STRING,
+              description: "Human readable room count (e.g. '2 Zimmer', '1.5-2 Zimmer')",
+            },
+            minRooms: {
+              type: Type.INTEGER,
+              description: "Minimum number of rooms (default to 1)",
+            },
+            maxRooms: {
+              type: Type.INTEGER,
+              description: "Maximum number of rooms (if open-ended like '2 Zimmer+', set to 99)",
+            },
+            budgetText: {
+              type: Type.STRING,
+              description: "Human readable budget/rent (e.g. '1200 € warm', '800 € kalt')",
+            },
+            budget: {
+              type: Type.INTEGER,
+              description: "The maximum parsed numerical monthly rent/budget in Euros (default to 0 if not specified)",
+            },
+            sizeText: {
+              type: Type.STRING,
+              description: "Human readable size (e.g. '60 m²', 'ab 45 m²')",
+            },
+            size: {
+              type: Type.INTEGER,
+              description: "The numerical apartment size in m² (default to 0 if not specified)",
+            },
+            districts: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "List of matching Munich districts in lowercase (must map exactly to one or more of these valid strings: 'allach', 'moosach', 'schwabing', 'bogenhausen', 'wuermtal', 'neuhausen', 'maxvorstadt', 'lehel', 'isarvorstadt', 'haidhausen', 'ramersdorf'). Map central landmarks like 'Münchner Freiheit' to 'schwabing', 'Johanneskirchen' to 'bogenhausen'.",
+            },
+            tags: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "Extract characteristics as tags (choose only from: 'Nichtraucher', 'Keine Haustiere', 'Balkon/Terrasse', 'Garten', 'Möbliert', 'Befristet')",
+            },
+            fullText: {
+              type: Type.STRING,
+              description: "The complete raw text block of this specific listing (clean up HTML tags, keep formatting)",
+            },
+            features: {
+              type: Type.OBJECT,
+              properties: {
+                nonSmoker: {
+                  type: Type.BOOLEAN,
+                  description: "true if the ad specifies non-smoker / Nichtraucher",
+                },
+                noPets: {
+                  type: Type.BOOLEAN,
+                  description: "true if the ad specifies no pets / Keine Haustiere",
+                },
+                hasBalcony: {
+                  type: Type.BOOLEAN,
+                  description: "true if the ad mentions Balkon, Terrasse, Dachterrasse",
+                },
+                hasGarden: {
+                  type: Type.BOOLEAN,
+                  description: "true if the ad mentions Garten, Gartenmitbenutzung",
+                },
+                furnished: {
+                  type: Type.BOOLEAN,
+                  description: "true if the ad mentions möbliert, teilmöbliert",
+                },
+                temporary: {
+                  type: Type.BOOLEAN,
+                  description: "true if the ad mentions befristet, Zwischenmiete, Untermiete",
+                },
+              },
+              required: ["nonSmoker", "noPets", "hasBalcony", "hasGarden", "furnished", "temporary"],
+            },
+            date: {
+              type: Type.STRING,
+              description: "The outreach date of this listing, default to '2026-05-27'",
+            },
+            dateText: {
+              type: Type.STRING,
+              description: "The readable date in German, default to '27. Mai 2026'",
+            },
+          },
+          required: [
+            "id", "name", "email", "phone", "type", "title", "roomsText",
+            "minRooms", "maxRooms", "budgetText", "budget", "sizeText", "size",
+            "districts", "tags", "fullText", "features", "date", "dateText"
+          ],
+        },
+      },
     },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }],
-      generationConfig: {
-        responseMimeType: "application/json"
-      }
-    })
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini API Error (${response.status}): ${errText}`);
+  const jsonText = response.text?.trim() || "";
+  if (!jsonText) {
+    throw new Error("Invalid response format from Gemini API - empty content");
   }
 
-  const data = await response.json();
-  
-  if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
-    throw new Error("Invalid response format from Gemini API - empty candidate contents");
-  }
-
-  const jsonText = data.candidates[0].content.parts[0].text.trim();
-  
   // Clean markdown wrapper if model accidentally returned it
   const cleanedJson = jsonText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "");
   

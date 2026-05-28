@@ -37,7 +37,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(listing.email);
     setCopied(true);
-    toast.success("Email address copied to clipboard!");
+    toast.success("E-Mail-Adresse in die Zwischenablage kopiert!");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -97,38 +97,38 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             {listing.title}
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500 mt-1 flex gap-4">
-            <span>Date: <strong className="text-slate-700 font-semibold">{listing.dateText}</strong></span>
-            <span>Author: <strong className="text-slate-700 font-semibold">{listing.name}</strong></span>
+            <span>Datum: <strong className="text-slate-700 font-semibold">{listing.dateText}</strong></span>
+            <span>Autor: <strong className="text-slate-700 font-semibold">{listing.name}</strong></span>
           </DialogDescription>
         </DialogHeader>
 
         {/* Dynamic Key Specs Section */}
         <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 border border-slate-200/60 rounded-xl my-4 text-center">
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Rooms</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Zimmer</span>
             <span className="text-lg font-black font-mono text-slate-900 mt-1">{listing.roomsText}</span>
             <span className="text-[9px] text-slate-500 mt-0.5">min: {listing.minRooms} / max: {listing.maxRooms === 99 ? "∞" : listing.maxRooms}</span>
           </div>
           <div className="flex flex-col border-x border-slate-200">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Budget / Warm</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Budget (warm)</span>
             <span className="text-lg font-black font-mono text-slate-900 mt-1">
-              {listing.budget > 0 ? `${listing.budget} €` : "n.a."}
+              {listing.budget > 0 ? `${listing.budget} €` : "k.A."}
             </span>
-            <span className="text-[9px] text-slate-500 mt-0.5">{listing.budgetText ? "Warm rent" : "Rent requested"}</span>
+            <span className="text-[9px] text-slate-500 mt-0.5">{listing.budgetText ? "Warmmiete" : "Mietwunsch"}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Apartment Size</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Größe</span>
             <span className="text-lg font-black font-mono text-slate-900 mt-1">
-              {listing.size > 0 ? `${listing.size} m²` : "n.a."}
+              {listing.size > 0 ? `${listing.size} m²` : "k.A."}
             </span>
-            <span className="text-[9px] text-slate-500 mt-0.5">{listing.sizeText ? "Estimated size" : "Size requested"}</span>
+            <span className="text-[9px] text-slate-500 mt-0.5">{listing.sizeText ? "Geschätzte Größe" : "Größenwunsch"}</span>
           </div>
         </div>
 
         {/* Detailed Description */}
         <div className="space-y-2">
           <h4 className="text-xs font-bold uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
-            <Info className="w-3.5 h-3.5 text-slate-400" /> Complete Text
+            <Info className="w-3.5 h-3.5 text-slate-400" /> Vollständiger Text
           </h4>
           <div className="p-4 bg-slate-50/50 border border-slate-200/80 rounded-xl text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-sans max-h-60 overflow-y-auto">
             {listing.fullText}
@@ -138,7 +138,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
         {/* Attributes Checklist */}
         {listing.tags.length > 0 && (
           <div className="space-y-2 mt-4">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-600">Extracted Characteristics</h4>
+            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-600">Extrahierte Eigenschaften</h4>
             <div className="flex flex-wrap gap-2">
               {listing.tags.map((tag) => (
                 <Badge key={tag} className="bg-slate-100/50 hover:bg-slate-100 text-slate-600 border-slate-200 py-1 px-2.5 text-[10px]">
@@ -152,14 +152,14 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
         {/* Contact details & Prefilled Email composer */}
         <div className="border-t border-slate-100 mt-6 pt-4 space-y-4">
           <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Mail className="w-4 h-4 text-indigo-600" /> Outreach Composer
+            <Mail className="w-4 h-4 text-indigo-600" /> Kontakt-Composer
           </h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Quick Copy Email */}
             <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs">
               <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500">Email Address</span>
+                <span className="text-slate-500">E-Mail-Adresse</span>
                 <span className="font-mono text-slate-800 font-bold select-all">{listing.email}</span>
               </div>
               <Button size="icon" variant="ghost" className="hover:bg-slate-100 text-slate-500" onClick={handleCopyEmail}>
@@ -170,8 +170,8 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             {/* Quick Copy Phone (if exists) */}
             <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs">
               <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500">Phone Contact</span>
-                <span className="font-mono text-slate-800 font-bold">{listing.phone || "Not provided"}</span>
+                <span className="text-slate-500">Telefonkontakt</span>
+                <span className="font-mono text-slate-800 font-bold">{listing.phone || "Nicht angegeben"}</span>
               </div>
               {listing.phone && (
                 <Button size="icon" variant="ghost" className="hover:bg-slate-100 text-slate-500">
@@ -186,7 +186,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             <div className="text-xs text-indigo-800 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>
-                Below is a draft message compiled in German matching their listing criteria. Clicking **Send Email** will launch your native mail client with this content.
+                Unten finden Sie einen E-Mail-Entwurf auf Deutsch, der zu den Kriterien des Inserats passt. Durch Klicken auf **E-Mail senden** wird Ihr lokales E-Mail-Programm mit diesem Text gestartet.
               </span>
             </div>
             
@@ -200,7 +200,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
               asChild
             >
               <a href={mailtoUrl}>
-                <Send className="w-3.5 h-3.5" /> Send Email
+                <Send className="w-3.5 h-3.5" /> E-Mail senden
               </a>
             </Button>
           </div>

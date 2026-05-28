@@ -55,7 +55,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
       const fileExtension = fileName.split(".").pop()?.toLowerCase();
 
       if (fileExtension !== "txt" && fileExtension !== "eml") {
-        toast.error("Unsupported file type! Please drop a .txt or .eml file.");
+        toast.error("Nicht unterstützter Dateityp! Bitte lade eine .txt- oder .eml-Datei hoch.");
         return;
       }
 
@@ -67,13 +67,13 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
         const batchId = extractBatchId(text);
         setLogs((prev) => [
           ...prev,
-          `[SYSTEM] Drag & drop detected: successfully loaded "${fileName}" (${Math.round(file.size / 100) / 10} kB).`,
-          `[SYSTEM] Extracted batch ID: "${batchId}".`
+          `[SYSTEM] Drag & Drop erkannt: "${fileName}" erfolgreich geladen (${Math.round(file.size / 100) / 10} kB).`,
+          `[SYSTEM] Extrahierte Batch-ID: "${batchId}".`
         ]);
-        toast.success(`Successfully loaded ${fileName}!`);
+        toast.success(`${fileName} erfolgreich geladen!`);
       };
       reader.onerror = () => {
-        toast.error("Failed to read the dropped file!");
+        toast.error("Fehler beim Lesen der hochgeladenen Datei!");
       };
       reader.readAsText(file);
     }
@@ -81,7 +81,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
 
   const handleParse = async () => {
     if (!inputText.trim()) {
-      toast.error("Please paste content or drop a file first!");
+      toast.error("Bitte füge zuerst Text ein oder ziehe eine Datei hierher!");
       return;
     }
 
@@ -91,12 +91,12 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
     setCompleted(false);
 
     try {
-      setLogs((prev) => [...prev, "[SYSTEM] Initializing Budenschleuder Ingestion Engine..."]);
+      setLogs((prev) => [...prev, "[SYSTEM] Initialisiere Budenschleuder-Parsing-Engine..."]);
       await new Promise((r) => setTimeout(r, 300));
 
       setLogs((prev) => [
         ...prev,
-        `[SYSTEM] Checking database for batch ID: "${batchId}"...`
+        `[SYSTEM] Überprüfe Datenbank auf Batch-ID: "${batchId}"...`
       ]);
       await new Promise((r) => setTimeout(r, 400));
 
@@ -104,11 +104,11 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
       if (existingBatches.includes(batchId)) {
         setLogs((prev) => [
           ...prev,
-          `[INFO] Deterministic check: Batch "${batchId}" is ALREADY available in database.`,
-          `[SUCCESS] Switched to existing batch "${batchId}".`,
-          `[SYSTEM] Skipped Gemini AI parsing to conserve API usage.`
+          `[INFO] Überprüfung: Batch "${batchId}" ist BEREITS in der Datenbank vorhanden.`,
+          `[SUCCESS] Zu bestehendem Batch "${batchId}" gewechselt.`,
+          `[SYSTEM] Gemini-Parsing übersprungen, um API-Guthaben zu schonen.`
         ]);
-        toast.info(`Batch "${batchId}" already loaded. Switched to it.`);
+        toast.info(`Batch "${batchId}" ist bereits geladen. Gewechselt.`);
         
         onSelectBatch(batchId);
         setCompleted(true);
@@ -118,11 +118,11 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
 
       // If not present, run Gemini AI parsing!
       if (!apiKey.trim()) {
-        toast.error("No Gemini API Key found in env variables! Ingestion aborted.");
+        toast.error("Kein Gemini-API-Schlüssel in den Umgebungsvariablen gefunden! Ingestion abgebrochen.");
         setLogs((prev) => [
           ...prev,
-          `[ERROR] Missing Ingestion credentials: GEMINI_API_KEY is not defined in your environment (.env file).`,
-          `[SYSTEM] Ingestion aborted.`
+          `[FEHLER] Fehlende Anmeldedaten: GEMINI_API_KEY ist in der Umgebung (.env-Datei) nicht definiert.`,
+          `[SYSTEM] Ingestion abgebrochen.`
         ]);
         setIsParsing(false);
         return;
@@ -130,33 +130,33 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
 
       setLogs((prev) => [
         ...prev,
-        `[INFO] Batch "${batchId}" is new. Commencing Gemini AI Ingestion...`,
-        `[INFO] Model targeted: gemini-3.1-flash-lite`,
-        `[SYSTEM] Formulating zero-shot JSON-constrained prompt...`
+        `[INFO] Batch "${batchId}" ist neu. Starte Gemini-KI-Parsing...`,
+        `[INFO] Ziel-Modell: gemini-3.1-flash-lite`,
+        `[SYSTEM] Erstelle JSON-validierten Prompt...`
       ]);
       await new Promise((r) => setTimeout(r, 400));
 
-      setLogs((prev) => [...prev, `[INFO] Connecting to Google Generative Language services...`]);
+      setLogs((prev) => [...prev, `[INFO] Verbinde mit Google Generative Language Services...`]);
       await new Promise((r) => setTimeout(r, 350));
 
-      setLogs((prev) => [...prev, `[AI] Transmitting unstructured text stream (${Math.round(inputText.length / 100) / 10} kB)...`]);
+      setLogs((prev) => [...prev, `[AI] Übertrage unstrukturierten Text (${Math.round(inputText.length / 100) / 10} kB)...`]);
       await new Promise((r) => setTimeout(r, 200));
 
-      setLogs((prev) => [...prev, `[AI] Model is compiling and reasoning over housing rules...`]);
+      setLogs((prev) => [...prev, `[AI] Modell analysiert und extrahiert Inseratsdaten...`]);
 
       const parsed = await parseNewsletterWithAI(inputText, apiKey);
 
-      setLogs((prev) => [...prev, `[SUCCESS] Received high-fidelity JSON payload from Gemini API.`]);
+      setLogs((prev) => [...prev, `[SUCCESS] Strukturierte JSON-Antwort von Gemini-API empfangen.`]);
       await new Promise((r) => setTimeout(r, 300));
 
-      setLogs((prev) => [...prev, `[SYSTEM] Found ${parsed.length} cognitive housing blocks.`]);
+      setLogs((prev) => [...prev, `[SYSTEM] ${parsed.length} Inserate erkannt.`]);
       await new Promise((r) => setTimeout(r, 300));
 
       for (let i = 0; i < parsed.length; i++) {
         const item = parsed[i];
         setLogs((prev) => [
           ...prev,
-          `[EXTRACT] Block #${i + 1} | Type: ${item.type} | Name: ${item.name} | Contact: ${item.email}`
+          `[EXTRACT] Inserat #${i + 1} | Typ: ${item.type} | Name: ${item.name} | Kontakt: ${item.email}`
         ]);
         await new Promise((r) => setTimeout(r, 100));
       }
@@ -164,7 +164,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
       // Save parsed listings directly to Vercel Edge Config
       setLogs((prev) => [
         ...prev,
-        `[SYSTEM] Connecting to serverless API to persist batch...`
+        `[SYSTEM] Verbinde mit API, um Batch zu speichern...`
       ]);
       await new Promise((r) => setTimeout(r, 200));
 
@@ -181,14 +181,14 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
 
       if (!saveRes.ok) {
         const errData = await saveRes.json();
-        throw new Error(errData.error || "Failed to update Vercel Edge Config database");
+        throw new Error(errData.error || "Fehler beim Speichern in der Vercel Blob/Filesystem-Datenbank");
       }
 
       setLogs((prev) => [
         ...prev,
-        `[SUCCESS] Batch successfully persisted to globally replicated Vercel Edge Config!`,
-        `[SUCCESS] Registered key "batch:${batchId}" and updated central "catalog".`,
-        `[SYSTEM] Injecting ${parsed.length} structured listings into explorer...`
+        `[SUCCESS] Batch erfolgreich in der globalen Vercel-Datenbank gespeichert!`,
+        `[SUCCESS] Schlüssel "batch:${batchId}" registriert und Katalog aktualisiert.`,
+        `[SYSTEM] Lade ${parsed.length} strukturierte Inserate in den Explorer...`
       ]);
 
       await new Promise((r) => setTimeout(r, 400));
@@ -197,15 +197,15 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
       onImportBatch(batchId, parsed);
 
       setCompleted(true);
-      toast.success(`AI successfully ingested & saved listings for ${batchId}!`);
+      toast.success(`KI hat die Inserate für ${batchId} erfolgreich verarbeitet und gespeichert!`);
     } catch (error) {
       setLogs((prev) => [
         ...prev,
         `[ERROR] AI Ingestion Exception: ${(error as Error).message}`,
-        `[SYSTEM] Please check your Gemini API key in your .env file, network connection, or text layout.`,
-        `[SYSTEM] Ingestion aborted.`
+        `[SYSTEM] Bitte überprüfe den Gemini-API-Schlüssel in der .env-Datei, die Netzwerkverbindung oder das Textformat.`,
+        `[SYSTEM] Ingestion abgebrochen.`
       ]);
-      toast.error("AI parsing failed! View console logs.");
+      toast.error("KI-Parsing fehlgeschlagen! Siehe Konsolen-Logs.");
     } finally {
       setIsParsing(false);
     }
@@ -235,18 +235,18 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
             <div className="p-4 bg-sky-50 rounded-full border border-sky-100 text-[#0071e3] animate-bounce">
               <Upload className="w-8 h-8" />
             </div>
-            <span className="text-sm font-bold text-slate-800">Drop your newsletter file</span>
-            <span className="text-xs text-slate-500">Supports .txt or .eml files</span>
+            <span className="text-sm font-bold text-slate-800">Newsletter-Datei hierher ziehen</span>
+            <span className="text-xs text-slate-500">Unterstützt .txt- oder .eml-Dateien</span>
           </div>
         )}
 
         <CardHeader className="pb-3 shrink-0">
           <div className="space-y-1">
             <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 text-[#0071e3]" /> Import Housing Issue
+              <RefreshCw className="w-4 h-4 text-[#0071e3]" /> Newsletter importieren
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
-              Paste email text or drag-and-drop a <strong className="text-slate-700">.txt</strong> or <strong className="text-slate-700">.eml</strong> file below to extract listings.
+              Füge den Text einer E-Mail ein oder ziehe eine <strong className="text-slate-700">.txt</strong>- oder <strong className="text-slate-700">.eml</strong>-Datei hierher, um Inserate zu extrahieren.
             </CardDescription>
           </div>
         </CardHeader>
@@ -255,7 +255,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             disabled={isParsing}
-            placeholder="Paste your Budenschleuder email here, or drag & drop a .txt/.eml file..."
+            placeholder="Füge den Text der Budenschleuder-E-Mail hier ein oder lade eine .txt/.eml-Datei hoch..."
             className="w-full flex-grow p-3 bg-slate-50/70 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0071e3] focus:ring-1 focus:ring-[#0071e3] resize-none"
           />
           <div className="flex justify-between items-center gap-3 shrink-0">
@@ -265,14 +265,14 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
               disabled={isParsing || !inputText}
               className="border-slate-200 hover:bg-slate-50 hover:text-slate-900 text-slate-500 text-xs py-1.5 rounded-xl transition-all hover:cursor-pointer"
             >
-              Clear
+              Leeren
             </Button>
             <Button
               onClick={handleParse}
               disabled={isParsing || !inputText}
               className="bg-[#0071e3] hover:bg-[#0071e3]/90 text-white font-semibold text-xs flex items-center justify-center gap-2 py-1.5 px-4 rounded-xl shadow-sm-clean transition-colors hover:cursor-pointer"
             >
-              <Play className="w-3.5 h-3.5 fill-current" /> Execute Ingestion Engine
+              <Play className="w-3.5 h-3.5 fill-current" /> Import ausführen
             </Button>
           </div>
         </CardContent>
@@ -283,10 +283,10 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
         <CardHeader className="pb-3 border-b border-slate-100 shrink-0 bg-slate-50/50 z-10 flex flex-row items-center justify-between">
           <div className="space-y-1">
             <CardTitle className="text-xs font-mono text-slate-800 flex items-center gap-2 uppercase tracking-widest">
-              <Terminal className="w-3.5 h-3.5 text-slate-500" /> Parser Console Terminal
+              <Terminal className="w-3.5 h-3.5 text-slate-500" /> Parser-Konsole
             </CardTitle>
             <CardDescription className="text-[10px] font-mono text-slate-500">
-              Compilation Logs / Stream Listener
+              Verarbeitungsprotokoll
             </CardDescription>
           </div>
           {completed && (
@@ -299,7 +299,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
           {logs.length === 0 ? (
             <div className="h-full flex items-center justify-center text-slate-400 text-center flex-col gap-2 select-none">
               <Terminal className="w-8 h-8 opacity-25 text-slate-400 animate-pulse" />
-              <span>CONSOLE IDLE. AWAITING INGESTION STREAM TRIGGER.</span>
+              <span>KONSOLE BEREIT. WARTE AUF IMPORT-START.</span>
             </div>
           ) : (
             logs.map((log, i) => {
@@ -320,7 +320,7 @@ export const ParserTerminal: React.FC<ParserTerminalProps> = ({
           {isParsing && (
             <div className="text-[#0071e3] font-bold animate-pulse inline-flex items-center gap-1.5 mt-1">
               <span>■</span>
-              <span className="text-[9px] tracking-widest uppercase">Executing...</span>
+              <span className="text-[9px] tracking-widest uppercase">Wird verarbeitet...</span>
             </div>
           )}
           <div ref={terminalEndRef} />
