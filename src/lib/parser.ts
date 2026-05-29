@@ -6,7 +6,8 @@ export interface ParsedListing {
   name: string;
   email: string;
   phone: string;
-  type: "SUCHE" | "BIETE" | "TAUSCH" | "WG" | "KAUF";
+  type: "OFFER" | "REQUEST" | "SWITCH";
+  subType: "APARTMENT" | "WG" | "BUY" | "OFFICE" | "HOUSE" | "OTHER";
   title: string;
   roomsText: string;
   minRooms: number;
@@ -113,8 +114,13 @@ ${cleanedText}`;
             },
             type: {
               type: Type.STRING,
-              enum: ["SUCHE", "BIETE", "TAUSCH", "WG", "KAUF"],
-              description: "Categorize the listing: WG for WG Room shares, TAUSCH for direct swaps, KAUF for buying, BIETE for offering an apartment, SUCHE for seeking an apartment.",
+              enum: ["OFFER", "REQUEST", "SWITCH"],
+              description: "The overarching category: OFFER for providing/offering a space, REQUEST for seeking/searching a space, SWITCH for direct swapping/exchanging.",
+            },
+            subType: {
+              type: Type.STRING,
+              enum: ["APARTMENT", "WG", "BUY", "OFFICE", "HOUSE", "OTHER"],
+              description: "The underarching sub-category: APARTMENT for standard apartments/flats, WG for shared room/WG-Zimmer, BUY for buying real estate/Kaufgesuche, OFFICE for commercial/office/practice space, HOUSE for single-family houses, OTHER for any other type.",
             },
             title: {
               type: Type.STRING,
@@ -202,7 +208,7 @@ ${cleanedText}`;
             },
           },
           required: [
-            "id", "name", "email", "phone", "type", "title", "roomsText",
+            "id", "name", "email", "phone", "type", "subType", "title", "roomsText",
             "minRooms", "maxRooms", "budgetText", "budget", "sizeText", "size",
             "districts", "tags", "fullText", "features", "date", "dateText"
           ],
@@ -227,6 +233,8 @@ ${cleanedText}`;
     id: item.id || `listing-ai-${idx}-${Date.now() % 10000}`,
     date: item.date || "2026-05-27",
     dateText: item.dateText || "27. Mai 2026",
+    type: item.type || "REQUEST",
+    subType: item.subType || "APARTMENT",
     minRooms: typeof item.minRooms === "number" ? item.minRooms : 1,
     maxRooms: typeof item.maxRooms === "number" ? item.maxRooms : 1,
     budget: typeof item.budget === "number" ? item.budget : 0,

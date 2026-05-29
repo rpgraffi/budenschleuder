@@ -21,24 +21,39 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 }) => {
   // Styles based on listing type
   const typeStyles = {
-    SUCHE: {
-      badge: "text-sky-600 border-sky-200 bg-sky-50"
+    OFFER: {
+      badge: "text-emerald-600 border-emerald-200 bg-emerald-50",
+      label: "BIETE"
     },
-    BIETE: {
-      badge: "text-emerald-600 border-emerald-200 bg-emerald-50"
+    REQUEST: {
+      badge: "text-sky-600 border-sky-200 bg-sky-50",
+      label: "SUCHE"
     },
-    TAUSCH: {
-      badge: "text-amber-600 border-amber-200 bg-amber-50"
-    },
-    WG: {
-      badge: "text-purple-600 border-purple-200 bg-purple-50"
-    },
-    KAUF: {
-      badge: "text-rose-600 border-rose-200 bg-rose-50"
+    SWITCH: {
+      badge: "text-amber-600 border-amber-200 bg-amber-50",
+      label: "TAUSCH"
     }
   };
 
-  const currentStyle = typeStyles[listing.type] || typeStyles.SUCHE;
+  const subTypeStyles = {
+    APARTMENT: "text-slate-600 border-slate-200 bg-slate-50",
+    WG: "text-purple-600 border-purple-200 bg-purple-50",
+    BUY: "text-rose-600 border-rose-200 bg-rose-50",
+    OFFICE: "text-indigo-600 border-indigo-200 bg-indigo-50",
+    HOUSE: "text-teal-600 border-teal-200 bg-teal-50",
+    OTHER: "text-slate-500 border-slate-200 bg-slate-50"
+  };
+
+  const subTypeLabels = {
+    APARTMENT: "Wohnung",
+    WG: "WG-Zimmer",
+    BUY: "Kauf",
+    OFFICE: "Büro/Gewerbe",
+    HOUSE: "Haus",
+    OTHER: "Sonstiges"
+  };
+
+  const currentStyle = typeStyles[listing.type] || typeStyles.REQUEST;
 
   return (
     <Card
@@ -48,11 +63,14 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       <CardHeader className="p-4 pb-2">
         <div className="flex justify-between items-start gap-2">
           {/* Listing Category Badge & Date */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Badge variant="outline" className={cn("text-[9px] font-bold tracking-wider uppercase", currentStyle.badge)}>
-              {listing.type}
+              {currentStyle.label}
             </Badge>
-            <span className="text-[10px] text-slate-400 font-medium">
+            <Badge variant="outline" className={cn("text-[9px] font-semibold tracking-wide", subTypeStyles[listing.subType] || subTypeStyles.OTHER)}>
+              {subTypeLabels[listing.subType] || listing.subType}
+            </Badge>
+            <span className="text-[10px] text-slate-400 font-medium ml-1">
               {listing.dateText}
             </span>
           </div>

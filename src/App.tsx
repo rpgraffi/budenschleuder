@@ -9,20 +9,16 @@ import { cn } from "@/lib/utils";
 
 import { Toaster } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 import { 
   Search, 
   Terminal as TerminalIcon, 
-  Bookmark, 
+  Heart, 
   SlidersHorizontal, 
   RotateCcw,
-  X,
   PlusCircle,
   CalendarX
 } from "lucide-react";
@@ -36,11 +32,10 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>("explorer");
   
   // Filtering States
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("BIETE");
+  const [typeFilter, setTypeFilter] = useState<string>("OFFER");
+  const [subTypeFilter, setSubTypeFilter] = useState<string>("ALL");
   const [roomsFilter, setRoomsFilter] = useState<string>("ALL");
   const [districtFilter, setDistrictFilter] = useState<string>("ALL");
-  const [maxBudget, setMaxBudget] = useState<number>(3000);
   const [showOnlyFavs, setShowOnlyFavs] = useState<boolean>(false);
   const [excludeTemporary, setExcludeTemporary] = useState<boolean>(true);
 
@@ -57,18 +52,18 @@ export default function App() {
         return res.json();
       })
       .then((data: { catalog: string[]; batches: Record<string, ParsedListing[]>; mode: string }) => {
-        setExistingBatchIds(data.catalog);
-        setBatches(data.batches);
+        const catalog = data.catalog || [];
+        const batchesData = data.batches || {};
+
+        setExistingBatchIds(catalog);
+        setBatches(batchesData);
 
         // Set initial active batch ID preference if stored
         const savedActiveBatch = localStorage.getItem("budenschleuder_active_batch_id");
-        setExistingBatchIds((currentIds) => {
-          const initialBatch = savedActiveBatch && (currentIds.includes(savedActiveBatch) || savedActiveBatch === "ALL")
-            ? savedActiveBatch
-            : (currentIds[0] || "ALL");
-          setActiveBatchId(initialBatch);
-          return currentIds;
-        });
+        const initialBatch = savedActiveBatch && (catalog.includes(savedActiveBatch) || savedActiveBatch === "ALL")
+          ? savedActiveBatch
+          : (catalog[0] || "ALL");
+        setActiveBatchId(initialBatch);
       })
       .catch((e) => {
         console.error("Failed to load batches from serverless Edge Config API:", e);
@@ -123,11 +118,10 @@ export default function App() {
   };
 
   const handleResetFilters = () => {
-    setSearchQuery("");
-    setTypeFilter("ALL");
+    setTypeFilter("OFFER");
+    setSubTypeFilter("ALL");
     setRoomsFilter("ALL");
     setDistrictFilter("ALL");
-    setMaxBudget(3000);
     setShowOnlyFavs(false);
     setExcludeTemporary(true);
   };
@@ -143,42 +137,37 @@ export default function App() {
   // --- 5. Real-Time Listings Matching Other Filters (Excluding category Type filter) ---
   const listingsMatchingOtherFilters = useMemo(() => {
     return listings.filter((item) => {
-      // A. Text Search
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesText = item.fullText.toLowerCase().includes(query) ||
-          item.title.toLowerCase().includes(query) ||
-          item.name.toLowerCase().includes(query);
-        if (!matchesText) return false;
-      }
-
-      // B. Rooms Filter
+      // A. Rooms Filter
       if (roomsFilter !== "ALL") {
         const requiredRooms = parseFloat(roomsFilter);
         if (item.maxRooms < requiredRooms) return false;
       }
 
-      // C. District Filter
+      // B. District Filter
       if (districtFilter !== "ALL" && !item.districts.includes(districtFilter)) return false;
 
-      // E. Exclude Befristet / Temporary
+      // C. Exclude Befristet / Temporary
       if (excludeTemporary && (item.features?.temporary || item.tags.includes("Befristet"))) return false;
 
-      // F. Favorites Only
+      // D. Favorites Only
       if (showOnlyFavs && !favorites.includes(item.id)) return false;
 
       return true;
     });
-  }, [listings, searchQuery, roomsFilter, districtFilter, maxBudget, excludeTemporary, showOnlyFavs, favorites]);
+  }, [listings, roomsFilter, districtFilter, excludeTemporary, showOnlyFavs, favorites]);
 
   // --- 6. Core Reactive Filtering Logic ---
   const filteredListings = useMemo(() => {
     return listingsMatchingOtherFilters.filter((item) => {
-      // Category Type Filter
+      // A. Overarching Type Filter
       if (typeFilter !== "ALL" && item.type !== typeFilter) return false;
+
+      // B. Underarching Sub-Type Filter
+      if (subTypeFilter !== "ALL" && item.subType !== subTypeFilter) return false;
+
       return true;
     });
-  }, [listingsMatchingOtherFilters, typeFilter]);
+  }, [listingsMatchingOtherFilters, typeFilter, subTypeFilter]);
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-slate-900 flex flex-col font-sans relative pb-10">
@@ -189,23 +178,19 @@ export default function App() {
         {/* Header Branding */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-200 pb-5 shrink-0">
           <div className="flex items-center gap-4">
-            {/* Native dropdown selector positioned on the left */}
+            {/* Native dropdown selector acting as the main header title */}
             {existingBatchIds.length > 0 && (
               <select
                 value={activeBatchId}
                 onChange={(e) => handleSelectBatch(e.target.value)}
-                className="bg-slate-200/60 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs rounded-xl shadow-sm-clean h-8 font-bold px-3 focus:outline-none focus:ring-1 focus:ring-slate-400 hover:cursor-pointer transition-colors"
+                className="bg-transparent border-none text-xl md:text-2xl font-bold text-slate-900 tracking-tight focus:outline-none hover:cursor-pointer transition-colors py-1 focus:ring-0 select-header"
               >
-                <option value="ALL">Alle Ausgaben kombiniert</option>
+                <option value="ALL">Budenschleuder — Alle Ausgaben</option>
                 {existingBatchIds.map((id) => (
-                  <option key={id} value={id}>Ausgabe {id}</option>
+                  <option key={id} value={id}>Budenschleuder — Ausgabe {id}</option>
                 ))}
               </select>
             )}
-
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-              Budenschleuder
-            </h1>
           </div>
           
           {/* Tab Navigation */}
@@ -262,33 +247,37 @@ export default function App() {
                   <>
                     {/* Search & Advanced Multi-Filter controls bar */}
                     <Card className="bg-white border border-slate-200/80 shadow-sm-clean rounded-2xl">
-                      <CardContent className="p-4 flex flex-col gap-4">
+                      <CardContent className="px-4 py-2.5 flex flex-col gap-4">
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                          
-                          {/* Search Query */}
-                          <div className="md:col-span-4 relative">
-                            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                            <Input
-                              placeholder="Stichwort, Name suchen..."
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="pl-9 bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus-visible:ring-slate-300 h-9 text-xs rounded-xl shadow-sm-clean"
-                            />
-                          </div>
-
-                          {/* Listing Category Selector */}
-                          <div className="md:col-span-2">
+                                               {/* Listing Type Selector */}
+                          <div className="md:col-span-3">
                             <Select value={typeFilter} onValueChange={setTypeFilter}>
                               <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-850 h-9 text-xs rounded-xl shadow-sm-clean">
-                                <SelectValue placeholder="Kategorie" />
+                                <SelectValue placeholder="Typ" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-slate-200 text-slate-800 text-xs rounded-xl shadow-md-clean">
-                                <SelectItem value="ALL">Alle Kategorien</SelectItem>
-                                <SelectItem value="SUCHE">Suche</SelectItem>
-                                <SelectItem value="BIETE">Biete</SelectItem>
-                                <SelectItem value="TAUSCH">Tausch</SelectItem>
+                                <SelectItem value="ALL">Alle Typen</SelectItem>
+                                <SelectItem value="OFFER">Biete (Angebote)</SelectItem>
+                                <SelectItem value="REQUEST">Suche (Gesuche)</SelectItem>
+                                <SelectItem value="SWITCH">Tausch</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Listing SubType Selector */}
+                          <div className="md:col-span-3">
+                            <Select value={subTypeFilter} onValueChange={setSubTypeFilter}>
+                              <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-850 h-9 text-xs rounded-xl shadow-sm-clean">
+                                <SelectValue placeholder="Objektart" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white border-slate-200 text-slate-800 text-xs rounded-xl shadow-md-clean">
+                                <SelectItem value="ALL">Alle Objektarten</SelectItem>
+                                <SelectItem value="APARTMENT">Wohnung</SelectItem>
                                 <SelectItem value="WG">WG-Zimmer</SelectItem>
-                                <SelectItem value="KAUF">Kaufgesuch</SelectItem>
+                                <SelectItem value="BUY">Kaufgesuch</SelectItem>
+                                <SelectItem value="OFFICE">Büro/Gewerbe</SelectItem>
+                                <SelectItem value="HOUSE">Haus</SelectItem>
+                                <SelectItem value="OTHER">Sonstiges</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -315,7 +304,7 @@ export default function App() {
                               <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-800 h-9 text-xs rounded-xl shadow-sm-clean">
                                 <SelectValue placeholder="Stadtteil" />
                               </SelectTrigger>
-                              <SelectContent className="bg-white border-slate-200 text-slate-805 text-xs rounded-xl shadow-md-clean">
+                              <SelectContent className="bg-white border-slate-200 text-slate-850 text-xs rounded-xl shadow-md-clean">
                                 <SelectItem value="ALL">Beliebiger Stadtteil</SelectItem>
                                 {Object.entries(MUNICH_DISTRICTS).map(([key, value]) => (
                                   <SelectItem key={key} value={key}>
@@ -350,7 +339,7 @@ export default function App() {
                               )}
                               title="Nur Favoriten anzeigen"
                             >
-                              <Bookmark className="w-4 h-4 fill-current" />
+                              <Heart className="w-4 h-4 fill-current" />
                             </Button>
                             <Button
                               size="icon"
@@ -364,76 +353,6 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Advanced Slider Row (Budget limit) */}
-                        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 pt-2 border-t border-slate-100">
-                          <div className="flex items-center gap-2 text-slate-500 text-xs shrink-0 font-medium">
-                            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-                            <span>Maximales Budget (Miete):</span>
-                            <span className="font-bold font-mono text-slate-800 text-xs bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/60 shadow-sm-clean">
-                              {maxBudget === 3000 ? "Kein Limit" : `${maxBudget} €`}
-                            </span>
-                          </div>
-                          <div className="w-full flex items-center h-5">
-                            <Slider
-                              defaultValue={[3000]}
-                              max={3000}
-                              min={300}
-                              step={50}
-                              value={[maxBudget]}
-                              onValueChange={(val) => setMaxBudget(val[0])}
-                              className="w-full hover:cursor-pointer apple-slider"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Active Filters Pill Summary Row */}
-                        {(searchQuery || typeFilter !== "ALL" || roomsFilter !== "ALL" || districtFilter !== "ALL" || maxBudget < 3000 || showOnlyFavs || excludeTemporary) && (
-                          <div className="flex flex-wrap gap-1.5 items-center pt-2">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 mr-1.5 select-none">Aktive Filter:</span>
-                            {searchQuery && (
-                              <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Suche: "{searchQuery}"
-                                <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setSearchQuery("")} />
-                              </Badge>
-                            )}
-                            {typeFilter !== "ALL" && (
-                              <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Typ: {typeFilter}
-                                <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setTypeFilter("ALL")} />
-                              </Badge>
-                            )}
-                            {roomsFilter !== "ALL" && (
-                              <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Zimmer: {roomsFilter}+
-                                <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setRoomsFilter("ALL")} />
-                              </Badge>
-                            )}
-                            {districtFilter !== "ALL" && (
-                              <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Ort: {MUNICH_DISTRICTS[districtFilter]?.name || districtFilter}
-                                <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setDistrictFilter("ALL")} />
-                              </Badge>
-                            )}
-                            {maxBudget < 3000 && (
-                              <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Max. Miete: {maxBudget}€
-                                <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setMaxBudget(3000)} />
-                              </Badge>
-                            )}
-                            {excludeTemporary && (
-                              <Badge variant="secondary" className="bg-blue-50 border border-blue-200 text-[10px] text-blue-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Befristete ausblenden
-                                <X className="w-3 h-3 text-blue-400 hover:text-blue-700 cursor-pointer" onClick={() => setExcludeTemporary(false)} />
-                              </Badge>
-                            )}
-                            {showOnlyFavs && (
-                              <Badge variant="secondary" className="bg-slate-100 border border-slate-200 text-[10px] text-slate-600 pr-1.5 gap-1.5 py-0.5 rounded-lg font-medium shadow-sm-clean">
-                                Nur Favoriten
-                                <X className="w-3 h-3 text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setShowOnlyFavs(false)} />
-                              </Badge>
-                            )}
-                          </div>
-                        )}
                       </CardContent>
                     </Card>
 

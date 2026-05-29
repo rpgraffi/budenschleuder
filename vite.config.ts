@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import fs from "fs";
+import { put, list } from "@vercel/blob";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -18,13 +18,15 @@ export default defineConfig(({ mode }) => {
       {
         name: "save-batch-middleware",
         configureServer(server) {
-          server.middlewares.use((req, res, next) => {
+          server.middlewares.use(async (req, res, next) => {
+            const token = env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN;
+
             if (req.method === "POST" && req.url === "/api/save-batch") {
               let body = "";
               req.on("data", (chunk) => {
                 body += chunk;
               });
-              req.on("end", () => {
+              req.on("end", async () => {
                 try {
                   const { batchId, listings } = JSON.parse(body);
                   if (!batchId || !Array.isArray(listings)) {
@@ -33,39 +35,68 @@ export default defineConfig(({ mode }) => {
                     return;
                   }
 
-                  // Create public directories if they don't exist
-                  const batchDir = path.resolve(__dirname, "public/data/batch");
-                  if (!fs.existsSync(batchDir)) {
-                    fs.mkdirSync(batchDir, { recursive: true });
+                  if (!token) {
+                    res.writeHead(500, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ success: false, error: "BLOB_READ_WRITE_TOKEN is missing in environment variables!" }));
+                    return;
                   }
 
-                  // Save individual batch file
-                  const batchFilePath = path.join(batchDir, `${batchId}.json`);
-                  fs.writeFileSync(batchFilePath, JSON.stringify(listings, null, 2), "utf-8");
-
-                  // Update catalog: public/data/batches.json
-                  const catalogPath = path.resolve(__dirname, "public/data/batches.json");
-                  let catalog: string[] = [];
-                  if (fs.existsSync(catalogPath)) {
-                    try {
-                      catalog = JSON.parse(fs.readFileSync(catalogPath, "utf-8"));
-                    } catch (e) {
-                      catalog = [];
-                    }
-                  }
-                  if (!catalog.includes(batchId)) {
-                    catalog.push(batchId);
-                    catalog.sort((a, b) => b.localeCompare(a));
-                    fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2), "utf-8");
-                  }
+                  const { url } = await put(`batch/${batchId}.json`, JSON.stringify(listings, null, 2), {
+                    access: "public",
+                    addRandomSuffix: false,
+                    token
+                  });
 
                   res.writeHead(200, { "Content-Type": "application/json" });
-                  res.end(JSON.stringify({ success: true, path: `/data/batch/${batchId}.json` }));
+                  res.end(JSON.stringify({ success: true, mode: "dev_blob", path: url }));
                 } catch (err) {
                   res.writeHead(500, { "Content-Type": "application/json" });
                   res.end(JSON.stringify({ success: false, error: (err as Error).message }));
                 }
               });
+            } else if (req.method === "GET" && req.url === "/api/get-batches") {
+              try {
+                if (!token) {
+                  // Fallback: Fetch directly from the live Vercel production API!
+                  const fetchRes = await fetch("https://budenschleuder.vercel.app/api/get-batches");
+                  if (fetchRes.ok) {
+                    const data = await fetchRes.json();
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify(data));
+                    return;
+                  }
+
+                  res.writeHead(500, { "Content-Type": "application/json" });
+                  res.end(JSON.stringify({ success: false, error: "BLOB_READ_WRITE_TOKEN is missing and live production database fallback failed" }));
+                  return;
+                }
+
+                const { blobs } = await list({ prefix: "batch/", token });
+                const catalog = blobs
+                  .map((blob) => blob.pathname.replace("batch/", "").replace(".json", ""))
+                  .sort((a, b) => b.localeCompare(a));
+
+                const batches: Record<string, any[]> = {};
+                await Promise.all(
+                  blobs.map(async (blob) => {
+                    const batchId = blob.pathname.replace("batch/", "").replace(".json", "");
+                    try {
+                      const fetchRes = await fetch(blob.url);
+                      if (fetchRes.ok) {
+                        batches[batchId] = (await fetchRes.json()) as any[];
+                      }
+                    } catch (e) {
+                      console.error(`Failed to load batch ${batchId} from blob URL:`, e);
+                    }
+                  })
+                );
+
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ catalog, batches, mode: "dev_blob" }));
+              } catch (err) {
+                res.writeHead(500, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ success: false, error: (err as Error).message }));
+              }
             } else {
               next();
             }
